@@ -1,39 +1,85 @@
 // src/db/pglite.js
+import { PGliteWorker } from '@electric-sql/pglite/worker'
 
-import { PGlite } from '@electric-sql/pglite'
+let pgWorkerInstance = null
+let initializationPromise = null
 
-let db
-
-/**
- * Initializes and provides a singleton PGlite database instance.
- * This function handles database setup and schema creation, ensuring
- * our patient data is persistent.
- *
- * @returns {Promise<PGlite>} The ready-to-use PGlite database instance.
- */
 export async function getDb() {
-  // If the database hasn't been set up yet, let's do it.
-  if (!db) {
-    db = new PGlite({
-      // We're using IndexedDB for persistence. 'idb://patients' tells PGlite
-      // to store our database files in an IndexedDB database named 'patients'
-      // in the browser, making data survive refreshes and closures.
-      dataDir: 'idb://patients',
-    })
+  if (pgWorkerInstance) {
+    return pgWorkerInstance
+  }
 
-    await db.waitReady
+  if (initializationPromise) {
+    return initializationPromise
+  }
 
-    // Create our 'patients' table if it doesn't already exist.
-    // This defines the structure for our core patient data.
-    await db.exec(`
+  initializationPromise = new Promise(async (resolve, reject) => {
+    try {
+      const worker = new PGliteWorker(
+        new Worker(new URL('./pglite-worker.js', import.meta.url), {
+          type: 'module',
+          name: 'patient-db-worker',
+        })
+      )
+
+      await worker.waitReady
+      console.log('PGliteWorker connection established from main thread.')
+      pgWorkerInstance = worker
+      resolve(pgWorkerInstance)
+    } catch (error) {
+      console.error('Failed to initialize PGLiteWorker:', error)
+      reject(error)
+    } finally {
+      initializationPromise = null
+    }
+  })
+
+  return initializationPromise
+}
+
+// Helper function to retry operations that might fail due to leader changes
+async function retryWithLeaderStabilization(
+  operationFn,
+  retries = 3,
+  delayMs = 200
+) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await operationFn()
+    } catch (error) {
+      if (
+        error.message &&
+        error.message.includes('Leader changed') &&
+        i < retries - 1
+      ) {
+        console.warn(
+          `Attempt ${
+            i + 1
+          } failed due to leader change. Retrying in ${delayMs}ms...`
+        )
+        await new Promise((res) => setTimeout(res, delayMs))
+        delayMs *= 1.5 // Exponential backoff
+      } else {
+        throw error // Re-throw other errors or the last leader changed error
+      }
+    }
+  }
+}
+
+export async function initSchema() {
+  await retryWithLeaderStabilization(async () => {
+    const db = await getDb()
+    await db.query(`
       CREATE TABLE IF NOT EXISTS patients (
         id SERIAL PRIMARY KEY,
-        name TEXT,
-        age INTEGER,
-        gender TEXT,
-        address TEXT
+        name TEXT NOT NULL,
+        age INTEGER NOT NULL,
+        gender TEXT NOT NULL,
+        address TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `)
-  }
-  return db
+    console.log('Patients table schema checked/created.')
+  })
 }
+

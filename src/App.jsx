@@ -1,12 +1,22 @@
-// App.jsx
-import { useEffect, useState } from 'react'
-import { getDb } from './db/pglite'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { getDb, initSchema } from './db/pglite'
 import './App.css'
 
 import doctorThinking from './assets/doctor-thinking.png'
 import doctorSuccess from './assets/doctor-success.png'
 import ValidationPrompt from './components/ValidationPrompt'
 import DarkModeToggle from './components/DarkModeToggle'
+
+
+let globalBroadcastChannel = null
+
+function getGlobalBroadcastChannel() {
+  if (!globalBroadcastChannel || globalBroadcastChannel.closed) {
+    globalBroadcastChannel = new BroadcastChannel('patient-sync')
+    console.log('BroadcastChannel (global) initialized/re-initialized.')
+  }
+  return globalBroadcastChannel
+}
 
 function App() {
   const [patients, setPatients] = useState([])
@@ -19,21 +29,38 @@ function App() {
   const [validationMessage, setValidationMessage] = useState('')
   const [validationType, setValidationType] = useState('error')
 
+  // Use a ref to track if the component is mounted to prevent state updates on unmounted component
+  const mountedRef = useRef(true)
+
   const clearValidationMessage = () => {
     setValidationMessage('')
     setValidationType('error')
   }
 
-  const fetchPatients = async () => {
+  const fetchPatients = useCallback(async () => {
     try {
       const db = await getDb()
-      const result = await db.query(`SELECT * FROM patients`)
-      setPatients(result?.rows || [])
+      const result = await db.query(
+        `SELECT * FROM patients ORDER BY created_at DESC`
+      )
+      if (mountedRef.current) {
+        setPatients(result?.rows || [])
+        console.log('Patients fetched:', result?.rows.length)
+      }
     } catch (error) {
-      console.error('Error fetching patients:', error)
-      setPatients([])
+      if (error.message && error.message.includes('Leader changed')) {
+        console.warn(
+          'PGlite Leader changed, retrying fetch if necessary or awaiting stability.'
+        )
+        // No immediate retry, as the system should stabilize. Next render cycle might re-trigger.
+      } else {
+        console.error('Error fetching patients:', error)
+        if (mountedRef.current) {
+          setPatients([])
+        }
+      }
     }
-  }
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -63,22 +90,33 @@ function App() {
         [name.trim(), parseInt(age), gender.trim(), address.trim()]
       )
 
-      setValidationMessage('Patient registered successfully!')
-      setValidationType('success')
-      setCurrentDoctorIllustration(doctorSuccess)
+      if (mountedRef.current) {
+        setValidationMessage('Patient registered successfully!')
+        setValidationType('success')
+        setCurrentDoctorIllustration(doctorSuccess)
+        setName('')
+        setAge('')
+        setGender('')
+        setAddress('')
+      }
 
-      setName('')
-      setAge('')
-      setGender('')
-      setAddress('')
+      // Always get the active BroadcastChannel before posting
+      const channel = getGlobalBroadcastChannel()
+      channel.postMessage({ type: 'update' })
+      console.log('Patient added, broadcast message sent.')
+      await fetchPatients()
 
+      // Timeout for illustration change only
       setTimeout(() => {
-        setCurrentDoctorIllustration(doctorThinking)
-        fetchPatients()
+        if (mountedRef.current) {
+          setCurrentDoctorIllustration(doctorThinking)
+        }
       }, 1500)
     } catch (error) {
       console.error('Error submitting patient:', error)
-      setValidationMessage('Error registering patient. Please try again.')
+      if (mountedRef.current) {
+        setValidationMessage('Error registering patient. Please try again.')
+      }
     }
   }
 
@@ -93,19 +131,56 @@ function App() {
     try {
       const db = await getDb()
       await db.query(`DELETE FROM patients WHERE id = $1`, [id])
-      setValidationMessage('Patient deleted successfully.')
-      setValidationType('success')
-      fetchPatients()
+
+      if (mountedRef.current) {
+        setValidationMessage('Patient deleted successfully.')
+        setValidationType('success')
+      }
+
+      // Always get the active BroadcastChannel before posting
+      const channel = getGlobalBroadcastChannel()
+      channel.postMessage({ type: 'update' })
+      console.log('Patient deleted, broadcast message sent.')
+      await fetchPatients()
     } catch (error) {
       console.error('Error deleting patient:', error)
-      setValidationMessage('Failed to delete patient. Try again.')
-      setValidationType('error')
+      if (mountedRef.current) {
+        setValidationMessage('Failed to delete patient. Try again.')
+        setValidationType('error')
+      }
     }
   }
 
   useEffect(() => {
-    fetchPatients()
-  }, [])
+    mountedRef.current = true 
+
+    // Get the global BroadcastChannel and set up its listener
+    const channel = getGlobalBroadcastChannel()
+    channel.onmessage = (event) => {
+      if (event.data?.type === 'update') {
+        console.log(
+          'Received update message from BroadcastChannel, fetching patients...'
+        )
+        fetchPatients()
+      }
+    }
+
+    // Initialize DB schema and fetch patients
+    initSchema()
+      .then(() => {
+        console.log('Schema initialized, fetching patients for first time...')
+        fetchPatients()
+      })
+      .catch((error) => {
+        console.error('Failed to initialize database schema:', error)
+      })
+
+    
+    return () => {
+      mountedRef.current = false // Mark as unmounted
+      
+    }
+  }, [fetchPatients]) // fetchPatients is a dependency as it's used inside the effect
 
   return (
     <div className='app-page-wrapper'>
@@ -172,20 +247,24 @@ function App() {
       <div className='patients-list-section'>
         <h2>Registered Patients</h2>
         <p>Total {patients.length} patients</p>
-        <ul>
-          {patients.map((p, i) => (
-            <li key={p.id || i}>
-              {p.name}, {p.age}, {p.gender}, {p.address}
-              <button
-                className='delete-button'
-                onClick={() => handleDelete(p.id)}
-                style={{ marginLeft: '1rem', color: 'red' }}
-              >
-                Delete
-              </button>
-            </li>
-          ))}
-        </ul>
+        {patients.length > 0 ? (
+          <ul>
+            {patients.map((p, i) => (
+              <li key={p.id || i}>
+                {p.name}, {p.age}, {p.gender}, {p.address}
+                <button
+                  className='delete-button'
+                  onClick={() => handleDelete(p.id)}
+                  style={{ marginLeft: '1rem', color: 'red' }}
+                >
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No patients registered yet.</p>
+        )}
       </div>
     </div>
   )
