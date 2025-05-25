@@ -1,18 +1,341 @@
-.app-container {
-  max-width: 500px;
-  margin: auto;
-  padding: 2rem;
-  font-family: sans-serif;
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Open+Sans:wght@400;600&display=swap');
+
+:root {
+  --form-background-color: #fce769;
+  --accent-blue: #4a90e2;
+  --text-dark: #333;
+  --text-light: #555;
+  --border-color: #dcdcdc;
+  --input-bg: #fff;
+  --shadow-strong: rgba(0, 0, 0, 0.15);
+  --shadow-light: rgba(0, 0, 0, 0.08);
+  --doctor-background-grey: #e0e0e0;
+
+  /* Dark mode variables */
+  --background-dark: #1c1c1e;
+  --text-dark-mode: #f0f0f0;
+  --card-dark: #2c2c2e;
+  --input-dark-bg: #3a3a3c;
+  --button-dark-bg: #444;
 }
 
-.form input {
-  display: block;
-  margin: 0.5rem 0;
-  padding: 0.5rem;
+/* ===========================
+   Dark Mode Styles
+=========================== */
+
+body.dark {
+  background-color: #1e1e1e;
+  color: #f2f2f2;
+}
+
+body.dark .form-card {
+  background-color: #2b2b2b;
+  color: #f2f2f2;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+body.dark .form-title,
+body.dark .form-description,
+body.dark label {
+  color: #f2f2f2;
+}
+
+body.dark input {
+  background-color: #3a3a3a;
+  color: #ffffff;
+  border: 1px solid #555;
+}
+
+body.dark input::placeholder {
+  color: #bbbbbb;
+}
+
+body.dark button[type='submit'] {
+  background-color: #ffc107;
+  color: #1e1e1e;
+  font-weight: 600;
+}
+
+body.dark .patients-list-section {
+  background-color: #2b2b2b;
+  color: #f2f2f2;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+body.dark .patients-list-section li {
+  background-color: #3a3a3a;
+  color: #f2f2f2;
+  border: 1px solid #444;
+}
+
+body.dark .delete-button {
+  color: #ff6b6b;
+}
+
+/* --- Base Styles --- */
+body {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  color: var(--text-dark);
+  background-color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 20px;
+}
+
+.app-page-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   width: 100%;
+  max-width: 1100px;
 }
 
-button {
-  margin-top: 1rem;
-  padding: 0.5rem 1rem;
+.app-container {
+  display: flex;
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  justify-content: center;
+}
+
+/* --- Form Card --- */
+.form-card {
+  background-color: var(--form-background-color);
+  padding: 3.5rem 3rem 2.5rem 3rem;
+  border-radius: 20px;
+  box-shadow: 0 15px 40px var(--shadow-strong);
+  width: 100%;
+  text-align: center;
+  z-index: 10;
+  position: relative;
+}
+
+.form-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin-bottom: 0.8rem;
+}
+
+.form-description {
+  font-size: 1.2rem;
+  color: var(--text-light);
+  margin-bottom: 2rem;
+  max-width: 80%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* --- Doctor Illustration --- */
+.doctor-illustration {
+  position: absolute;
+  left: -240px;
+  bottom: 120px;
+  height: 300px;
+  width: auto;
+  z-index: 20;
+  pointer-events: none;
+}
+
+/* --- Form Fields --- */
+.patient-form {
+  text-align: left;
+  width: 85%;
+  margin: 0 auto;
+}
+
+.form-group {
+  margin-bottom: 1.2rem;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.9em;
+  color: var(--text-dark);
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+}
+
+.patient-form input {
+  width: calc(100% - 2rem);
+  padding: 0.8rem 1rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  color: var(--text-dark);
+  background-color: var(--input-bg);
+  box-shadow: 0 2px 8px var(--shadow-light);
+}
+
+.patient-form input:focus {
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
+  outline: none;
+}
+
+.patient-form input::placeholder {
+  color: #a0a0a0;
+}
+
+.patient-form button {
+  width: 100%;
+  margin-top: 1.8rem;
+  padding: 1rem 1.5rem;
+  background-color: var(--text-dark);
+  color: var(--form-background-color);
+  border: none;
+  border-radius: 8px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.3s, transform 0.2s, box-shadow 0.3s;
+}
+
+.patient-form button:hover {
+  background-color: #444;
+  transform: translateY(-2px);
+}
+
+.patient-form button:active {
+  background-color: #222;
+  transform: translateY(0);
+}
+
+/* --- Patient List Section --- */
+.patients-list-section {
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  width: 100%;
+  max-width: 900px;
+  margin-top: 2rem;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.patients-list-section h2 {
+  color: var(--accent-blue);
+  margin-bottom: 0.8rem;
+  font-size: 1.8rem;
+}
+
+.patients-list-section p {
+  color: var(--text-light);
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.patients-list-section ul {
+  list-style: none;
+  padding: 0;
+}
+
+.patients-list-section li {
+  background-color: #f0f8ff;
+  margin-bottom: 0.8rem;
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1em;
+  color: var(--text-dark);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #d9e7f5;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  animation: fadeInUp 0.4s ease-in-out;
+}
+
+.patients-list-section li:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+button.delete-button {
+  background-color: transparent;
+  color: red;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-decoration: underline;
+  margin-left: 10px;
+}
+
+button.delete-button:hover {
+  color: darkred;
+}
+
+/* --- Responsive --- */
+@media (max-width: 768px) {
+  body {
+    padding: 15px;
+  }
+
+  .app-container {
+    flex-direction: column;
+    align-items: center;
+    max-width: 95%;
+  }
+
+  .form-card {
+    padding: 2.5rem 1.5rem;
+    width: 100%;
+    margin-bottom: 1rem;
+  }
+
+  .doctor-illustration {
+    position: static;
+    height: 200px;
+    margin-top: 2rem;
+    order: -1;
+  }
+
+  .form-title {
+    font-size: 1.8rem;
+  }
+
+  .form-description {
+    font-size: 1rem;
+    max-width: 90%;
+  }
+
+  .patient-form {
+    width: 95%;
+  }
+
+  .patients-list-section {
+    max-width: 95%;
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .form-card {
+    border-radius: 15px;
+  }
+
+  .form-title {
+    font-size: 1.6rem;
+  }
+
+  .patients-list-section {
+    padding: 1rem;
+  }
 }
