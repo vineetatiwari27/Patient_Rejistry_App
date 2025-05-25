@@ -1,89 +1,115 @@
-// src/App.jsx
+// App.jsx
 import { useEffect, useState } from 'react'
-import './App.css'
+// Import our database utility to interact with PGlite.
 import { getDb } from './db/pglite'
 
 function App() {
+  // State variables for managing patient data and form inputs.
   const [patients, setPatients] = useState([])
-  const [form, setForm] = useState({
-    name: '',
-    age: '',
-    gender: '',
-    address: '',
-  })
+  const [name, setName] = useState('')
+  const [age, setAge] = useState('')
+  const [gender, setGender] = useState('')
+  const [address, setAddress] = useState('')
 
+  /**
+   * Fetches all patient records from the PGlite database and updates the component state.
+   */
   const fetchPatients = async () => {
-    const db = await getDb()
-    const result = await db.query('SELECT * FROM patients ORDER BY id DESC')
-    setPatients(result.rows)
+    console.log('Fetching patients...')
+    try {
+      const db = await getDb() // Get our singleton database instance.
+      const result = await db.query(`SELECT * FROM patients`)
+
+      // Ensure we have valid data before updating state.
+      if (result?.rows) {
+        setPatients(result.rows)
+      } else {
+        console.error('Unexpected query result format:', result)
+        setPatients([])
+      }
+    } catch (error) {
+      console.error('Error fetching patients:', error)
+      setPatients([])
+    }
   }
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value })
-  }
-
+  /**
+   * Handles the form submission to add a new patient to the database.
+   * After submission, it clears the form and re-fetches the patient list.
+   */
   const handleSubmit = async (e) => {
     e.preventDefault()
-    const db = await getDb()
-    const { name, age, gender, address } = form
+    if (!name || !age || !gender || !address) {
+      console.warn('Please fill all fields.')
+      return
+    }
 
-    await db.run(
-      'INSERT INTO patients (name, age, gender, address) VALUES (?, ?, ?, ?)',
-      [name, age, gender, address]
-    )
+    console.log('Submitting new patient...')
+    try {
+      const db = await getDb() // Access the database.
 
-    setForm({ name: '', age: '', gender: '', address: '' })
-    fetchPatients()
+      // Insert new patient data using parameterized query for security.
+      await db.query(
+        `INSERT INTO patients (name, age, gender, address) VALUES ($1, $2, $3, $4)`,
+        [name, parseInt(age), gender, address]
+      )
+
+      console.log('Patient inserted successfully.')
+      // Clear form fields and refresh the patient list to show the new entry.
+      setName('')
+      setAge('')
+      setGender('')
+      setAddress('')
+      fetchPatients()
+    } catch (error) {
+      console.error('Error submitting patient:', error)
+    }
   }
 
+  // On component mount, fetch existing patient data from the database.
   useEffect(() => {
     fetchPatients()
-  }, [])
+  }, []) // Empty dependency array ensures this runs only once on mount.
 
   return (
-    <div className='app-container'>
+    <div>
       <h1>Patient Registration</h1>
-
-      <form onSubmit={handleSubmit} className='form'>
+      <form onSubmit={handleSubmit}>
+        {/* Form inputs for patient details */}
         <input
-          name='name'
+          value={name}
+          onChange={(e) => setName(e.target.value)}
           placeholder='Name'
-          value={form.name}
-          onChange={handleChange}
-          required
         />
         <input
-          name='age'
+          value={age}
+          onChange={(e) => setAge(e.target.value)}
           placeholder='Age'
           type='number'
-          value={form.age}
-          onChange={handleChange}
-          required
         />
         <input
-          name='gender'
+          value={gender}
+          onChange={(e) => setGender(e.target.value)}
           placeholder='Gender'
-          value={form.gender}
-          onChange={handleChange}
-          required
         />
         <input
-          name='address'
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
           placeholder='Address'
-          value={form.address}
-          onChange={handleChange}
-          required
         />
-        <button type='submit'>Register Patient</button>
+        <button type='submit'>Register</button>
       </form>
+      <p>Rendering {patients.length} patients</p>
 
       <h2>Registered Patients</h2>
       <ul>
-        {patients.map((p) => (
-          <li key={p.id}>
-            {p.name} ({p.age}, {p.gender}) - {p.address}
-          </li>
-        ))}
+        {/* Display the list of patients fetched from the database */}
+        {Array.isArray(patients) &&
+          patients.map((p, i) => (
+            <li key={p.id || i}>
+              {p.name}, {p.age}, {p.gender}, {p.address}
+            </li>
+          ))}
       </ul>
     </div>
   )
