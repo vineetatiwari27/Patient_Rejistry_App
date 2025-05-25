@@ -7,7 +7,6 @@ import doctorSuccess from './assets/doctor-success.png'
 import ValidationPrompt from './components/ValidationPrompt'
 import DarkModeToggle from './components/DarkModeToggle'
 
-
 let globalBroadcastChannel = null
 
 function getGlobalBroadcastChannel() {
@@ -152,7 +151,7 @@ function App() {
   }
 
   useEffect(() => {
-    mountedRef.current = true 
+    mountedRef.current = true
 
     // Get the global BroadcastChannel and set up its listener
     const channel = getGlobalBroadcastChannel()
@@ -175,10 +174,8 @@ function App() {
         console.error('Failed to initialize database schema:', error)
       })
 
-    
     return () => {
       mountedRef.current = false // Mark as unmounted
-      
     }
   }, [fetchPatients]) // fetchPatients is a dependency as it's used inside the effect
 
@@ -246,7 +243,11 @@ function App() {
       </div>
       <div className='patients-list-section'>
         <h2>Registered Patients</h2>
-        <p>Total {patients.length} patients</p>
+        <p>
+          Total {patients.length}{' '}
+          {patients.length === 1 ? 'patient' : 'patients'}
+        </p>
+
         {patients.length > 0 ? (
           <ul>
             {patients.map((p, i) => (
