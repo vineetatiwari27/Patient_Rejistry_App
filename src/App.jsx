@@ -123,7 +123,7 @@ function App() {
     if (!id) return
 
     const confirmDelete = window.confirm(
-      'Are you sure you want to delete this patient?'
+      `Are you sure you want to delete this patient's data?`
     )
     if (!confirmDelete) return
 
